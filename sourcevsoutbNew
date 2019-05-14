@@ -111,15 +111,18 @@ for m in range(smdSheet.nrows):
                     print("Column exists in Source")
                     #print(sourcedf[sourceBusinessKey].iloc[0])
                 # iterate over rows # Logic to compare eodc outbound attribute value withe mapped source file attribute value
-                outBindex = 0
-                sindex = 0
+                outind = 0
+                sourcind = 0
                 #for outind in outbounddf.index:
                 for outind in outbounddf.index:
                     #print(outind)
                     #print("Data val in outbound ..."+outbounddf[SMD_FileAttributeVal][outind])
                     for sourcind in sourcedf.index:
-                        if (str(sourcedf[sourceBusinessKey][sourcind]).strip()== str(outbounddf[SMD_FileAttributeVal][outind]).strip()):
-                            #print("Found in Source..."+sourcedf[sourceBusinessKey][sourcind])
+                        sourceData = str(sourcedf[sourceBusinessKey][sourcind])
+                        outboundData = str(outbounddf[SMD_FileAttributeVal][outind])
+
+                        if (sourceData in outboundData):
+                            print("Found in Source..." + " at row : " + sourceData + "  for attribute named : " + str(SMD_FileAttributeVal))
                             if (outind == 1):
                                 print("End of iterations..")
                                 break

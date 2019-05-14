@@ -78,8 +78,9 @@ for m in range(smdSheet.nrows):
     SMD_Product1_Field1 = smdSheet.cell_value(m, SMD_Product1Field1ColIndex)
 
     if(SMD_BusinessRuleVal == "") and (SMD_DataTypeVal != "ENUM"):
-            print(SMD_FileAttributeVal + "skipped from data validation")
+            print(SMD_FileAttributeVal + "  -- skipped from data validation")
     elif SMD_BusinessRuleVal == "Direct Move":
+        print(SMD_FileAttributeVal + " -- Considered for Validation")
         # READ THE PRIMARY KEY FROM BOTH THE OUTBOUND AND SOURCE FILE
         if(SMD_FileTypeVal =="EODcPosition"):
             #LoadOutBoundPSV("EODcPosition")  # LOADED THE OUTBOUND FILE AND HEADER LIST
@@ -99,24 +100,29 @@ for m in range(smdSheet.nrows):
                 #FIND MATCHING COLUMN NAME IN SOURCE
 
                 print('Load Source File...')
-                sourcedata = pd.read_csv(str(os.path.abspath(os.curdir)) + "\\" + str(Source_File_Name),sep='\t')
+                sourcedata = pd.read_csv(str(os.path.abspath(os.curdir)) + "\\" + str(Source_File_Name),sep=',') #,dtype={sourceBusinessKey: str}
                 sourcedf = pd.DataFrame(sourcedata)
                 Sourceheader_list = list(sourcedf.columns)
                 sourcedf = sourcedf[[sourceBusinessKey]]
                 #print(Sourceheader_list)
-
                 if sourceBusinessKey in sourcedf.columns:
                     print("Column exists in Source")
                     #print(sourcedf[sourceBusinessKey].iloc[0])
-                # iterate over rows
+                # iterate over rows # Logic to compare eodc outbound attribute value withe mapped source file attribute value
                 outBindex = 0
                 sindex = 0
+                #for outind in outbounddf.index:
                 for outind in outbounddf.index:
-                    print(outind)
-                    print(outbounddf[SMD_FileAttributeVal][outind])
+                    #print(outind)
+                    #print("Data val in outbound ..."+outbounddf[SMD_FileAttributeVal][outind])
                     for sourcind in sourcedf.index:
-                        if (str(outbounddf[SMD_FileAttributeVal][outind]) == str(sourcedf[sourceBusinessKey][sourcind])):
-                            print("Match primary Key found in source at : " + sourcind)
+                        if (str(sourcedf[sourceBusinessKey][sourcind]).strip()== str(outbounddf[SMD_FileAttributeVal][outind]).strip()):
+                            #print("Found in Source..."+sourcedf[sourceBusinessKey][sourcind])
+                            if (outind == 1):
+                                print("End of iterations..")
+                                break
+
+
 
 
 

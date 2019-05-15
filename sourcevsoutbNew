@@ -78,7 +78,7 @@ for m in range(smdSheet.nrows):
     SMD_BusinessRuleVal = smdSheet.cell_value(m, SMD_BusinessRuleColIndex)
     SMD_Product1_Field1 = smdSheet.cell_value(m, SMD_Product1Field1ColIndex)
     SMD_CustomFileAttVal = smdSheet.cell_value(m, SMD_CustomFileAttColIndex)
-    
+
     if(SMD_BusinessRuleVal == "") and (SMD_DataTypeVal != "ENUM"):
             print(SMD_FileAttributeVal + "  -- skipped from data validation")
     elif SMD_BusinessRuleVal == "Direct Move":
@@ -87,45 +87,54 @@ for m in range(smdSheet.nrows):
         if(SMD_FileTypeVal =="EODcPosition"):
             #LoadOutBoundPSV("EODcPosition")  # LOADED THE OUTBOUND FILE AND HEADER LIST
             # iterating over rows using iterrows() function
-            n = 11
-        for n in range(smdSheet.ncols):
+            n = 10
+        #for n in range(smdSheet.ncols):
+        while n < 20:
+            outBColfound = 0
+            sourceColfound = 0
             if inputSheet.cell_value(n, 2) == "EODcPosition":
-
                 sourceBusinessKey = inputSheet.cell_value(n, 5)
                 outBoundBusinessKey = inputSheet.cell_value(n, 4)
                 print('Load Outbound File...')
                 data = pd.read_csv(str(os.path.abspath(os.curdir)) + "\\" + str(inputSheet.cell_value(n, 1)), sep='|',skiprows=[0])
                 outbounddf = pd.DataFrame(data)
                 header_list = list(outbounddf.columns)
-                outbounddf = outbounddf[[SMD_FileAttributeVal]]
-
+                if outBoundBusinessKey in outbounddf.columns:
+                    print("Column exists in outbound")
+                    outBColfound = outBColfound+1
+                #outbounddf = outbounddf[[sourceBusinessKey]]
+                #break
                 #FIND MATCHING COLUMN NAME IN SOURCE
 
+
                 print('Load Source File...')
-                sourcedata = pd.read_csv(str(os.path.abspath(os.curdir)) + "\\" + str(Source_File_Name),sep=',') #,dtype={sourceBusinessKey: str}
+                sourcedata = pd.read_csv(str(os.path.abspath(os.curdir)) + "\\" + str(Source_File_Name),sep='\t',dtype={sourceBusinessKey: str}) #,dtype={sourceBusinessKey: str}
                 sourcedf = pd.DataFrame(sourcedata)
                 Sourceheader_list = list(sourcedf.columns)
-                sourcedf = sourcedf[[sourceBusinessKey]]
-                #print(Sourceheader_list)
-                if sourceBusinessKey in sourcedf.columns:
-                    print("Column exists in Source")
+                if str(sourceBusinessKey).strip() in sourcedf.columns:
+                    print("Column exists in source")
+                    sourceColfound = sourceColfound+1
+                #sourcedf = sourcedf[[sourceBusinessKey]]
+
+                if outBColfound > 0 and sourceColfound > 0:
+                    print("outbound and source business key columns found")
+                else:
+                    print("outbound and source business key columns NOT found")
                     #print(sourcedf[sourceBusinessKey].iloc[0])
                 # iterate over rows # Logic to compare eodc outbound attribute value withe mapped source file attribute value
-                outind = 0
-                sourcind = 0
+                    outBindex = 0
+                    sindex = 0
                 #for outind in outbounddf.index:
                 for outind in outbounddf.index:
                     #print(outind)
                     #print("Data val in outbound ..."+outbounddf[SMD_FileAttributeVal][outind])
                     for sourcind in sourcedf.index:
-                        sourceData = str(sourcedf[sourceBusinessKey][sourcind])
-                        outboundData = str(outbounddf[SMD_FileAttributeVal][outind])
-
-                        if (sourceData in outboundData):
-                            print("Found in Source..." + " at row : " + sourceData + "  for attribute named : " + str(SMD_FileAttributeVal))
+                        if (str(sourcedf[sourceBusinessKey][sourcind]).strip()== str(outbounddf[SMD_FileAttributeVal][outind]).strip()):
+                            #print("Found in Source..."+sourcedf[sourceBusinessKey][sourcind])
                             if (outind == 1):
                                 print("End of iterations..")
                                 break
+                                n = n + 1
 
 
 

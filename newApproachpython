@@ -1,0 +1,113 @@
+import xlrd
+import pandas as pd
+import os
+
+#*******************************************************************************************************
+ #   'Read the input excel sheet
+#*******************************************************************************************************
+os.chdir("..")
+inputFilePath =  str(os.path.abspath(os.curdir)) + "\SourceVsOutboundValidator_V2.0.xlsx"
+print('InputFilePath directory is : ' + inputFilePath)
+#*******************************************************************************************************
+# Give the location of the file
+#*******************************************************************************************************
+loc = (inputFilePath)
+inputWB = xlrd.open_workbook(loc)
+inputSheet = inputWB.sheet_by_name("Inputs")
+SMD_File_Name= str(os.path.abspath(os.curdir)) + str("\\") + str((inputSheet.cell_value(2, 1)))
+Business_Rule_Column_Name =  str((inputSheet.cell_value(3, 1)))
+ProductName = (inputSheet.cell_value(4, 1))
+Sub_Product_Name = (inputSheet.cell_value(5, 1))
+Source_File_Name = (inputSheet.cell_value(6, 1))
+Product_Col_Name = (inputSheet.cell_value(7, 1))
+
+global EODPositionSheet,PositionDecoSheet,ValuationMSheet
+global m,n
+
+EODPositionSheet = inputWB.sheet_by_name("EODPosition")
+PositionDecoSheet = inputWB.sheet_by_name("PositionDecorator")
+ValuationMSheet = inputWB.sheet_by_name("ValuationMeasure")
+
+print('Load Source File...')
+sourcedata = pd.read_csv(str(os.path.abspath(os.curdir)) + "\\" + str(Source_File_Name), sep=',')  # ,dtype={sourceBusinessKey: str}
+sourcedf = pd.DataFrame(sourcedata)
+Sourceheader_list = list(sourcedf.columns)
+
+
+n = 10
+m= 1
+# for n in range(smdSheet.ncols):
+for n in range(20):
+    if str(inputSheet.cell_value(n, 1)) == "EODPosition":
+        outboundBKey = inputSheet.cell_value(n, 3)
+        sourceBKey = inputSheet.cell_value(n, 4)
+        totalRows = EODPositionSheet.nrows
+        print(totalRows)
+        'LOGIC FOR EODPOSITION FILE'
+        'get mapped column from outbound and source'
+        print('Load Outbound File...')
+        outBdata = pd.read_csv(str(os.path.abspath(os.curdir)) + "\\" + str(inputSheet.cell_value(n, 5)), sep='|',
+                               skiprows=[0])
+        outbounddf = pd.DataFrame(outBdata)
+        header_list = list(outbounddf.columns)
+        'get business rule column index'
+        for i in range(EODPositionSheet.ncols):
+            if EODPositionSheet.cell_value(0, i) == Business_Rule_Column_Name:
+                # continue
+                ColIndex = i
+                print("ColIndex..." + str(i))
+                break
+        for m in range(1,totalRows):
+            outboundAtt = EODPositionSheet.cell_value(m, 0)
+            print(outboundAtt)
+            sourceAtt = EODPositionSheet.cell_value(m, 5)
+            print(sourceAtt)
+            'CODE LOGIC FOR SET TO BUSINESS RULE'
+            businessRule = EODPositionSheet.cell_value(m, ColIndex)
+            print(businessRule)
+            if(businessRule.find("Set To")):
+                print("set to hai")
+                'refer outbound dataframe for attribute and check if it contains the set to value as per rule'
+                print(businessRule.index("\""))
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+    elif str(inputSheet.cell_value(n, 1)) == "PositionDecorator":
+        outboundBKey = inputSheet.cell_value(n, 3)
+        sourceBKey = inputSheet.cell_value(n, 4)
+        totalRows = inputWB.sheet_by_name("PositionDecorator").nrows
+        print(totalRows)
+        'LOGIC FOR POSITIONDECORATOR FILE'
+
+
+    elif str(inputSheet.cell_value(n, 1)) == "ValuationMeasure":
+        outboundBKey = inputSheet.cell_value(n, 3)
+        sourceBKey = inputSheet.cell_value(n, 4)
+        totalRows = inputWB.sheet_by_name("ValuationMeasure").nrows
+        print(totalRows)
+        'LOGIC FOR VALUATION MEASURE FILE'
+
+
+
+
+
+
+
+
+
+
+
+
+
+

@@ -1,0 +1,565 @@
+
+Public SMDSheetName, SMDws, SMDWorkbook, ConfigWB, SystemName, GetMeasureCount
+Public Sub FormatSMD()
+        Application.DisplayAlerts = False
+        
+        Application.ScreenUpdating = False
+        'ThisWorkbook.Application.StatusBar = "Processing..FormatSMD"
+        ThisWorkbook.Application.StatusBar = "Processing..FormatSMD"
+        
+
+        MacroPath = ThisWorkbook.Path
+        SMDSheetName = ThisWorkbook.Sheets("Inputs").Cells(5, 5)
+        Workbooks.Open MacroPath & "\" & SMDSheetName
+        SystemName = ThisWorkbook.Sheets("Inputs").Cells(3, 5)
+        Workbooks(SMDSheetName).Activate
+        Set SMDWorkbook = Workbooks(SMDSheetName)
+        SMDSheet1 = ThisWorkbook.Sheets("Inputs").Cells(6, 5)
+        
+        'Check if QAFormattedSMD & TotalMeasures already exists then delete those sheets
+        Call SheetRemoval
+        Workbooks(SMDSheetName).Save
+        Set SMDws = SMDWorkbook.Worksheets.Add(After:=SMDWorkbook.Worksheets(SMDWorkbook.Worksheets.Count), Type:=xlWorksheet)
+        SMDws.Name = "QAFormattedSMD"
+        Workbooks(SMDSheetName).Sheets(SMDSheet1).Select
+        'Copy the SMD first column
+        Columns("A:A").Select
+        Selection.Copy
+       'Paste the SMD first column in QAFormattedSMD sheet
+        Workbooks(SMDSheetName).Sheets(SMDws.Name).Select
+        Workbooks(SMDSheetName).ActiveSheet.Paste
+        Application.CutCopyMode = False
+        Selection.TextToColumns Destination:=Range("A1"), DataType:=xlDelimited, _
+            TextQualifier:=xlDoubleQuote, ConsecutiveDelimiter:=False, Tab:=True, _
+            Semicolon:=False, Comma:=False, Space:=False, Other:=True, OtherChar _
+            :="_", FieldInfo:=Array(Array(1, 1), Array(2, 1), Array(3, 1), Array(4, 1)), _
+            TrailingMinusNumbers:=True
+        Cells.Select
+        Cells.EntireColumn.AutoFit
+        Workbooks(SMDSheetName).Sheets(SMDSheet1).Select
+        Columns("B:BI").Select
+        Selection.Copy
+        Workbooks(SMDSheetName).Sheets("QAFormattedSMD").Select
+        'Columns("L:L").Select
+        Range("L1").Select
+        Workbooks(SMDSheetName).ActiveSheet.Paste
+        Workbooks(SMDSheetName).Save
+        Call FilterMeasures
+        
+End Sub
+Public Sub FilterMeasures()
+    
+    Workbooks(SMDSheetName).Activate
+    ActiveWindow.WindowState = xlNormal
+    Workbooks(SMDSheetName).Sheets("QAFormattedSMD").Select
+    Rows("2:2").Select
+    Range(Selection, Selection.End(xlDown)).Select
+    Range(Selection, Selection.End(xlDown)).Select
+    Range(Selection, Selection.End(xlDown)).Select
+    Selection.AutoFilter
+    Workbooks(SMDSheetName).ActiveSheet.Range("$A$2:$AJ$58").AutoFilter Field:=9, Criteria1:= _
+        "=*measure*", Operator:=xlAnd
+    Range("J2").Select
+    Columns("J:J").Select
+    Selection.Copy
+    Set SMDws = SMDWorkbook.Worksheets.Add(After:=SMDWorkbook.Worksheets(SMDWorkbook.Worksheets.Count), Type:=xlWorksheet)
+        SMDws.Name = "TotalMeasures"
+    Workbooks(SMDSheetName).ActiveSheet.Paste
+    Application.CutCopyMode = False
+    Workbooks(SMDSheetName).Save
+    ThisWorkbook.Application.StatusBar = "Processing..FilterMeasures"
+    Call GenerateMeasureSheets
+
+End Sub
+Public Sub GenerateMeasureSheets()
+    
+    Workbooks(SMDSheetName).Activate
+    Workbooks(SMDSheetName).Sheets("TotalMeasures").Select
+    Columns("A:A").Select
+    Selection.TextToColumns Destination:=Range("A1"), DataType:=xlDelimited, _
+        TextQualifier:=xlDoubleQuote, ConsecutiveDelimiter:=False, Tab:=True, _
+        Semicolon:=False, Comma:=False, Space:=False, Other:=True, OtherChar _
+        :="(", FieldInfo:=Array(Array(1, 1), Array(2, 1)), TrailingMinusNumbers:=True
+        
+    Columns("B:B").Select
+    Workbooks(SMDSheetName).ActiveSheet.Range("$B$1:$B$1048565").RemoveDuplicates Columns:=1, Header:=xlNo
+    Selection.Replace What:=")", Replacement:="", LookAt:=xlPart, _
+        SearchOrder:=xlByRows, MatchCase:=False, SearchFormat:=False, _
+        ReplaceFormat:=False
+    ThisWorkbook.Activate
+    
+    GetMeasureCount = Workbooks(SMDSheetName).Worksheets("TotalMeasures").Range("B:B").Cells.SpecialCells(xlCellTypeConstants).Count
+    'msgbox GetMeasureCount
+        'Create new Config Excel workbook
+        'Adding New Workbook
+        Workbooks.Add
+        'Saving the Workbook
+        EODCConfigFileName = ThisWorkbook.Sheets("Inputs").Cells(4, 5)
+        FormattedDate1 = Replace(CStr(Now()), "/", "_")
+        FormattedDate2 = Replace(FormattedDate1, ":", "_")
+        FormattedDate = Replace(FormattedDate2, " ", "_")
+        ActiveWorkbook.SaveAs ThisWorkbook.Path & "\" & "Config_" & EODCConfigFileName & "_" & FormattedDate
+        ConfigWB = "Config_" & EODCConfigFileName & "_" & FormattedDate & ".xlsx"
+        GetMeasureCount = GetMeasureCount + 1
+    For i = 1 To GetMeasureCount
+       
+        Workbooks(ConfigWB).Activate
+        MeasureName = Workbooks(SMDSheetName).Sheets("TotalMeasures").Cells(i, 2)
+        If MeasureName = "" Then
+            
+        Else
+           Set ConfigWS = Workbooks(ConfigWB).Worksheets.Add(After:=Workbooks(ConfigWB).Worksheets(Workbooks(ConfigWB).Worksheets.Count), Type:=xlWorksheet)
+           ConfigWS.Name = Replace((Mid(MeasureName, 1, 25)), " ", "")
+        End If
+    Next
+    Set ConfigWS = Workbooks(ConfigWB).Worksheets.Add(After:=Workbooks(ConfigWB).Worksheets(Workbooks(ConfigWB).Worksheets.Count), Type:=xlWorksheet)
+    ConfigWS.Name = "EODPosition"
+    Set ConfigWS = Workbooks(ConfigWB).Worksheets.Add(After:=Workbooks(ConfigWB).Worksheets(Workbooks(ConfigWB).Worksheets.Count), Type:=xlWorksheet)
+    ConfigWS.Name = "PositionDecorator"
+    Workbooks(SMDSheetName).Save
+    ThisWorkbook.Application.StatusBar = "Processing..GenerateMeasureSheets"
+    'Workbooks(SMDSheetName).ThisWorkbook.Application.StatusBar = "Processing..GenerateMeasureSheets"
+    
+    
+    
+    Call CreateEODCPositionConfig
+    Call CreateEODCPosDecoConfig
+    Call RemoveUnwantedSheets
+    Call CreateALLMeasureConfigs
+    Call formatAllsheets
+    Call AddTagsforProcessing
+    
+    Workbooks(SMDSheetName).Save
+    On Error Resume Next
+    Workbooks(SMDSheetName).Close
+    ThisWorkbook.Application.StatusBar = "Done"
+End Sub
+
+Public Sub SheetRemoval()
+    Dim s As Worksheet, t As String
+    Dim i As Long, K As Long
+    K = Workbooks(SMDSheetName).Sheets.Count
+
+    For i = K To 1 Step -1
+        t = Workbooks(SMDSheetName).Sheets(i).Name
+        If t = "TotalMeasures" Or t = "QAFormattedSMD" Then
+            Application.DisplayAlerts = False
+                Workbooks(SMDSheetName).Sheets(i).Delete
+            Application.DisplayAlerts = True
+        End If
+    Next i
+End Sub
+Public Sub RemoveMeasureSpace()
+    Workbooks(SMDSheetName).Activate
+    Workbooks(SMDSheetName).Sheets("TotalMeasures").Select
+    'Remove whitespaces from the measure names from column B
+    Columns("B:B").Select
+    Selection.Replace What:=" ", Replacement:="", LookAt:=xlPart, _
+        SearchOrder:=xlByRows, MatchCase:=False, SearchFormat:=False, _
+        ReplaceFormat:=False
+End Sub
+Public Sub RemoveUnwantedSheets()
+    Dim s As Worksheet, t As String
+    Dim i As Long, K As Long
+    K = Workbooks(ConfigWB).Sheets.Count
+
+    For i = K To 1 Step -1
+        t = Workbooks(ConfigWB).Sheets(i).Name
+        If t = "Sheet1" Or t = "Sheet2" Or t = "Sheet3" Then
+            Application.DisplayAlerts = False
+                Workbooks(ConfigWB).Sheets(i).Delete
+            Application.DisplayAlerts = True
+        End If
+    Next i
+End Sub
+
+
+Sub CreateEODCPositionConfig()
+
+    Workbooks(SMDSheetName).Activate
+    Workbooks(SMDSheetName).Sheets("QAFormattedSMD").Select
+    Selection.AutoFilter
+    Rows("2:2").Select
+    Range(Selection, Selection.End(xlDown)).Select
+    Range(Selection, Selection.End(xlDown)).Select
+    
+    Selection.AutoFilter
+    Workbooks(SMDSheetName).ActiveSheet.Range("$A$2:$BS$10000").AutoFilter Field:=9, Criteria1:= _
+        "EODCPosition"
+
+    Range("J2").Select
+    Range(Selection, Selection.End(xlDown)).Select
+    Range(Selection, Selection.End(xlToRight)).Select
+    
+    Set ws = Workbooks(SMDSheetName).ActiveSheet
+    lastRow = ws.UsedRange.SpecialCells(xlCellTypeLastCell).Row
+    Rng = "J2:" & "AN" & lastRow
+    Range(Rng).Select
+    Selection.Copy
+
+    Workbooks(ConfigWB).Activate
+    'Set ConfigWbsheets = Workbooks(ConfigWB).Sheets.Count
+    For Each wks In Workbooks(ConfigWB).Worksheets
+        strname = wks.Name
+        ThisWorkbook.Application.StatusBar = "Processing.." & wks.Name
+        If strname = "EODPosition" Then
+            Workbooks(ConfigWB).Sheets(strname).Select
+            Range("A4").Select
+            Workbooks(ConfigWB).ActiveSheet.Paste
+            Exit For
+        End If
+    Next
+    
+    For j = 3 To 50
+       cellval = Workbooks(ConfigWB).Sheets(strname).Cells(4, j)
+       If InStr(1, cellval, "Business Rule") Then
+            BusineRuleColIndex = j
+       ElseIf cellval = ThisWorkbook.Sheets("Inputs").Cells(6, 7) Then
+            Field1ColIndex = j
+       ElseIf InStr(1, cellval, "OtisEnumType") Then
+            OtisEnumTypeColIndex = j
+       ElseIf InStr(1, cellval, "DataType") Then
+            DataTypeColIndex = j
+       End If
+    Next
+    
+    LastUsedRow = Workbooks(ConfigWB).ActiveSheet.UsedRange.Rows.Count
+    LastUsedRow = LastUsedRow + 5
+    
+    For i = 5 To LastUsedRow
+        AttributeName = Workbooks(ConfigWB).Sheets(strname).Cells(i, 1)
+        BusinessRule = Workbooks(ConfigWB).Sheets(strname).Cells(i, BusineRuleColIndex)
+        AttriDataType = Workbooks(ConfigWB).Sheets(strname).Cells(i, DataTypeColIndex)
+        OtisEnumVal = Workbooks(ConfigWB).Sheets(strname).Cells(i, OtisEnumTypeColIndex)
+        Field1Val = Workbooks(ConfigWB).Sheets(strname).Cells(i, Field1ColIndex)
+        
+        ThisWorkbook.Application.StatusBar = "Processing.." & wks.Name & " Atribute named :" & AttributeName
+        
+        If BusinessRule = "Direct Move" And (AttriDataType = "STRING" Or AttriDataType = "DATE" Or AttriDataType = "INTEGER" Or AttriDataType = "DECIMAL") And AttriDataType <> "ENUM" Then   'And Field1Val <> "" Then
+            Workbooks(ConfigWB).Sheets(strname).Cells(i, 2) = "DM" & "(" & Trim(Field1Val) & ")"
+        ElseIf InStr(1, BusinessRule, "CUSTOM:") Then
+                'DO NOTHING
+                 Workbooks(ConfigWB).Sheets(strname).Cells(i, 2) = "CUSTOM LOGIC"
+        ElseIf BusinessRule = "Direct Move" And (AttriDataType = "ENUM") Then 'And Field1Val <> "" Then
+            Workbooks(ConfigWB).Sheets(strname).Cells(i, 2) = "ENUM" & "(" & SystemName & "," & OtisEnumVal & "," & "DM" & "(" & Field1Val & ")" & ")"
+        ElseIf (InStr(1, BusinessRule, "Set To """) Or InStr(1, BusinessRule, "Set to """)) And (AttriDataType = "ENUM") Then
+            getdoubleQ1 = InStr(1, Workbooks(ConfigWB).Sheets(strname).Cells(i, BusineRuleColIndex), """")
+            getdoubleQ2 = Len(Workbooks(ConfigWB).Sheets(strname).Cells(i, BusineRuleColIndex))
+            getValToSet = Mid(Workbooks(ConfigWB).Sheets(strname).Cells(i, BusineRuleColIndex), getdoubleQ1, getdoubleQ2)
+            Workbooks(ConfigWB).Sheets(strname).Cells(i, 2) = "ENUM" & "(" & SystemName & "," & OtisEnumVal & "," & "HC" & "(" & getValToSet & "))"
+        ElseIf BusinessRule = "" And (AttriDataType <> "ENUM") Then
+            Workbooks(ConfigWB).Sheets(strname).Cells(i, 2) = "NULL" & "(" & ")"
+        ElseIf BusinessRule = "" And (AttriDataType = "ENUM") Then 'And Field1Val <> "" Then
+            Workbooks(ConfigWB).Sheets(strname).Cells(i, 2) = "ENUM" & "(" & SystemName & "," & OtisEnumVal & "," & "HC" & "(" & """""" & "))"
+        ElseIf (InStr(1, BusinessRule, "Set To """) Or InStr(1, BusinessRule, "Set to """)) And (AttriDataType <> "ENUM") Then
+            'On Error Resume Next
+            getdoubleQ1 = InStr(1, Workbooks(ConfigWB).Sheets(strname).Cells(i, BusineRuleColIndex), """")
+            getdoubleQ2 = Len(Workbooks(ConfigWB).Sheets(strname).Cells(i, BusineRuleColIndex))
+            getValToSet = Mid(Workbooks(ConfigWB).Sheets(strname).Cells(i, BusineRuleColIndex), getdoubleQ1, getdoubleQ2)
+            Workbooks(ConfigWB).Sheets(strname).Cells(i, 2) = "HC" & "(" & getValToSet & ")"
+        End If
+        
+    Next
+
+End Sub
+
+
+Sub CreateEODCPosDecoConfig()
+
+    Workbooks(SMDSheetName).Activate
+    Workbooks(SMDSheetName).Sheets("QAFormattedSMD").Select
+    Selection.AutoFilter
+    Rows("2:2").Select
+    Range(Selection, Selection.End(xlDown)).Select
+    Range(Selection, Selection.End(xlDown)).Select
+    
+    Selection.AutoFilter
+    Workbooks(SMDSheetName).ActiveSheet.Range("$A$2:$BS$10000").AutoFilter Field:=9, Criteria1:= _
+        "=*Position Decorator*", Operator:=xlAnd
+    Range("J2").Select
+    Range(Selection, Selection.End(xlDown)).Select
+    Range(Selection, Selection.End(xlDown)).Select
+    Range(Selection, Selection.End(xlToRight)).Select
+    Set ws = Workbooks(SMDSheetName).ActiveSheet
+    lastRow = ws.UsedRange.SpecialCells(xlCellTypeLastCell).Row
+    Rng = "J2:" & "AN" & lastRow
+    Range(Rng).Select
+    Selection.Copy
+
+    Workbooks(ConfigWB).Activate
+    'Set ConfigWbsheets = Workbooks(ConfigWB).Sheets.Count
+    For Each wks In Workbooks(ConfigWB).Worksheets
+        strname = wks.Name
+        ThisWorkbook.Application.StatusBar = "Processing.." & wks.Name
+        If strname = "PositionDecorator" Then
+            Workbooks(ConfigWB).Sheets(strname).Select
+            Range("A4").Select
+            Workbooks(ConfigWB).ActiveSheet.Paste
+            Exit For
+        End If
+    Next
+    
+    For j = 3 To 50
+       cellval = Workbooks(ConfigWB).Sheets(strname).Cells(4, j)
+       If InStr(1, cellval, "Business Rule") Then
+            BusineRuleColIndex = j
+       ElseIf cellval = ThisWorkbook.Sheets("Inputs").Cells(6, 7) Then
+            Field1ColIndex = j
+       ElseIf InStr(1, cellval, "OtisEnumType") Then
+            OtisEnumTypeColIndex = j
+       ElseIf InStr(1, cellval, "DataType") Then
+            DataTypeColIndex = j
+       End If
+    Next
+    
+    LastUsedRow = Workbooks(ConfigWB).ActiveSheet.UsedRange.Rows.Count
+    LastUsedRow = LastUsedRow + 5
+    
+    For i = 5 To LastUsedRow
+        
+        AttributeName = Workbooks(ConfigWB).Sheets(strname).Cells(i, 1)
+        BusinessRule = Workbooks(ConfigWB).Sheets(strname).Cells(i, BusineRuleColIndex)
+        AttriDataType = Workbooks(ConfigWB).Sheets(strname).Cells(i, DataTypeColIndex)
+        OtisEnumVal = Workbooks(ConfigWB).Sheets(strname).Cells(i, OtisEnumTypeColIndex)
+        Field1Val = Workbooks(ConfigWB).Sheets(strname).Cells(i, Field1ColIndex)
+        
+        ThisWorkbook.Application.StatusBar = "Processing.." & wks.Name & " Atribute named :" & AttributeName
+        
+        If BusinessRule = "Direct Move" And (AttriDataType = "STRING" Or AttriDataType = "DATE" Or AttriDataType = "INTEGER" Or AttriDataType = "DECIMAL") And AttriDataType <> "ENUM" Then   'And Field1Val <> "" Then
+            Workbooks(ConfigWB).Sheets(strname).Cells(i, 2) = "DM" & "(" & Field1Val & ")"
+        ElseIf InStr(1, BusinessRule, "CUSTOM:") Then
+                'DO NOTHING
+                 Workbooks(ConfigWB).Sheets(strname).Cells(i, 2) = "CUSTOM LOGIC"
+        ElseIf BusinessRule = "Direct Move" And (AttriDataType = "ENUM") Then 'And Field1Val <> "" Then
+            Workbooks(ConfigWB).Sheets(strname).Cells(i, 2) = "ENUM" & "(" & SystemName & "," & OtisEnumVal & "," & "DM" & "(" & Field1Val & ")" & ")"
+        ElseIf (InStr(1, BusinessRule, "Set To """) Or InStr(1, BusinessRule, "Set to """)) And (AttriDataType = "ENUM") Then
+            getdoubleQ1 = InStr(1, Workbooks(ConfigWB).Sheets(strname).Cells(i, BusineRuleColIndex), """")
+            getdoubleQ2 = Len(Workbooks(ConfigWB).Sheets(strname).Cells(i, BusineRuleColIndex))
+            getValToSet = Mid(Workbooks(ConfigWB).Sheets(strname).Cells(i, BusineRuleColIndex), getdoubleQ1, getdoubleQ2)
+            Workbooks(ConfigWB).Sheets(strname).Cells(i, 2) = "ENUM" & "(" & SystemName & "," & OtisEnumVal & "," & "HC" & "(" & getValToSet & "))"
+        ElseIf BusinessRule = "" And (AttriDataType <> "ENUM") Then
+            Workbooks(ConfigWB).Sheets(strname).Cells(i, 2) = "NULL" & "(" & ")"
+        ElseIf BusinessRule = "" And (AttriDataType = "ENUM") Then 'And Field1Val <> "" Then
+            Workbooks(ConfigWB).Sheets(strname).Cells(i, 2) = "ENUM" & "(" & SystemName & "," & OtisEnumVal & "," & "HC" & "(" & """""" & "))"
+        ElseIf (InStr(1, BusinessRule, "Set To """) Or InStr(1, BusinessRule, "Set to """)) And (AttriDataType <> "ENUM") Then
+            'On Error Resume Next
+            getdoubleQ1 = InStr(1, Workbooks(ConfigWB).Sheets(strname).Cells(i, BusineRuleColIndex), """")
+            getdoubleQ2 = Len(Workbooks(ConfigWB).Sheets(strname).Cells(i, BusineRuleColIndex))
+            getValToSet = Mid(Workbooks(ConfigWB).Sheets(strname).Cells(i, BusineRuleColIndex), getdoubleQ1, getdoubleQ2)
+            Workbooks(ConfigWB).Sheets(strname).Cells(i, 2) = "HC" & "(" & getValToSet & "))"
+        End If
+        
+    Next
+
+End Sub
+
+
+Sub CreateALLMeasureConfigs()
+
+    'Get all the measure names from "Total Measures" sheet & iterate through the measures
+    Workbooks(SMDSheetName).Activate
+    
+    For m = 1 To GetMeasureCount
+        MeasureName = Workbooks(SMDSheetName).Sheets("TotalMeasures").Cells(m, 2)
+        'MsgBox MeasureName
+        '###########################  search the sheet name with measure name  ################
+            Workbooks(SMDSheetName).Activate
+            Workbooks(SMDSheetName).Sheets("QAFormattedSMD").Select
+            Selection.AutoFilter
+            Rows("2:2").Select
+            Range(Selection, Selection.End(xlDown)).Select
+            Range(Selection, Selection.End(xlDown)).Select
+            ' Thease measures are taken from TotalMeasures sheet of the SMD
+            Selection.AutoFilter
+            filterCriteria = "=*(" & MeasureName & ")"
+            Workbooks(SMDSheetName).ActiveSheet.Range("$A$2:$AB$10000").AutoFilter Field:=10, Criteria1:=filterCriteria, Operator:=xlAnd
+            Range("J2").Select
+        
+            Set ws = Workbooks(SMDSheetName).ActiveSheet
+            lastRow = ws.UsedRange.SpecialCells(xlCellTypeLastCell).Row
+            Rng = "J2:" & "AN" & lastRow
+            Range(Rng).Select
+            Selection.Copy
+        
+            Workbooks(ConfigWB).Activate
+            
+            For Each wks In Workbooks(ConfigWB).Worksheets
+                strname = wks.Name
+                
+                If InStr(1, strname, Replace((Mid(MeasureName, 1, 25)), " ", "")) Then
+                    Workbooks(ConfigWB).Sheets(strname).Select
+                    Range("A4").Select
+                    Workbooks(ConfigWB).ActiveSheet.Paste
+                    Columns("A:A").Select
+                    'remove measure name from atributes names
+                    Selection.Replace What:="(" & MeasureName & ")", Replacement:="", LookAt:= _
+                        xlPart, SearchOrder:=xlByRows, MatchCase:=False, SearchFormat:=False, _
+                        ReplaceFormat:=False
+                        Workbooks(ConfigWB).Save
+                        Exit For
+                End If
+            Next
+            
+            For j = 3 To 50
+               cellval = Workbooks(ConfigWB).Sheets(strname).Cells(4, j)
+               If InStr(1, cellval, "Business Rule") Then
+                    BusineRuleColIndex = j
+               ElseIf cellval = ThisWorkbook.Sheets("Inputs").Cells(6, 7) Then
+                    Field1ColIndex = j
+               ElseIf InStr(1, cellval, "OtisEnumType") Then
+                    OtisEnumTypeColIndex = j
+               ElseIf InStr(1, cellval, "DataType") Then
+                    DataTypeColIndex = j
+               End If
+            Next
+            
+            LastUsedRow = Workbooks(ConfigWB).ActiveSheet.UsedRange.Rows.Count
+            LastUsedRow = LastUsedRow + 5
+            
+            For i = 5 To LastUsedRow
+                 AttributeName = Workbooks(ConfigWB).Sheets(strname).Cells(i, 1)
+                BusinessRule = Workbooks(ConfigWB).Sheets(strname).Cells(i, BusineRuleColIndex)
+                AttriDataType = Workbooks(ConfigWB).Sheets(strname).Cells(i, DataTypeColIndex)
+                OtisEnumVal = Workbooks(ConfigWB).Sheets(strname).Cells(i, OtisEnumTypeColIndex)
+                Field1Val = Workbooks(ConfigWB).Sheets(strname).Cells(i, Field1ColIndex)
+                
+                ThisWorkbook.Application.StatusBar = "Processing.." & wks.Name & " Atribute named :" & AttributeName
+                
+                If BusinessRule = "Direct Move" And (AttriDataType = "STRING" Or AttriDataType = "DATE" Or AttriDataType = "INTEGER" Or AttriDataType = "DECIMAL") And AttriDataType <> "ENUM" Then   'And Field1Val <> "" Then
+                    Workbooks(ConfigWB).Sheets(strname).Cells(i, 2) = "DM" & "(" & Field1Val & ")"
+                ElseIf InStr(1, BusinessRule, "CUSTOM:") Then
+                        'DO NOTHING
+                         Workbooks(ConfigWB).Sheets(strname).Cells(i, 2) = "CUSTOM LOGIC"
+                ElseIf BusinessRule = "Direct Move" And (AttriDataType = "ENUM") Then 'And Field1Val <> "" Then
+                    Workbooks(ConfigWB).Sheets(strname).Cells(i, 2) = "ENUM" & "(" & SystemName & "," & OtisEnumVal & "," & "DM" & "(" & Field1Val & ")" & ")"
+                ElseIf (InStr(1, BusinessRule, "Set To """) Or InStr(1, BusinessRule, "Set to """)) And (AttriDataType = "ENUM") Then
+                    getdoubleQ1 = InStr(1, Workbooks(ConfigWB).Sheets(strname).Cells(i, BusineRuleColIndex), """")
+                    getdoubleQ2 = Len(Workbooks(ConfigWB).Sheets(strname).Cells(i, BusineRuleColIndex))
+                    getValToSet = Mid(Workbooks(ConfigWB).Sheets(strname).Cells(i, BusineRuleColIndex), getdoubleQ1, getdoubleQ2)
+                    Workbooks(ConfigWB).Sheets(strname).Cells(i, 2) = "ENUM" & "(" & SystemName & "," & OtisEnumVal & "," & "HC" & "(" & getValToSet & "))"
+                ElseIf BusinessRule = "" And (AttriDataType <> "ENUM") Then
+                    Workbooks(ConfigWB).Sheets(strname).Cells(i, 2) = "NULL" & "(" & ")"
+                ElseIf BusinessRule = "" And (AttriDataType = "ENUM") Then 'And Field1Val <> "" Then
+                    Workbooks(ConfigWB).Sheets(strname).Cells(i, 2) = "ENUM" & "(" & SystemName & "," & OtisEnumVal & "," & "HC" & "(" & """""" & "))"
+                ElseIf (InStr(1, BusinessRule, "Set To """) Or InStr(1, BusinessRule, "Set to """)) And (AttriDataType <> "ENUM") Then
+                    'On Error Resume Next
+                    getdoubleQ1 = InStr(1, Workbooks(ConfigWB).Sheets(strname).Cells(i, BusineRuleColIndex), """")
+                    getdoubleQ2 = Len(Workbooks(ConfigWB).Sheets(strname).Cells(i, BusineRuleColIndex))
+                    getValToSet = Mid(Workbooks(ConfigWB).Sheets(strname).Cells(i, BusineRuleColIndex), getdoubleQ1, getdoubleQ2)
+                    Workbooks(ConfigWB).Sheets(strname).Cells(i, 2) = "HC" & "(" & getValToSet & "))"
+                End If
+                
+            Next
+    
+    Next
+       
+End Sub
+
+
+
+Sub formatAllsheets()
+
+' Remove blanks lines -- extra lines etc from each worksheet
+Workbooks(ConfigWB).Activate
+
+For Each ws In Workbooks(ConfigWB).Worksheets
+
+    ws.Select
+    ws.Range("a5:A10000").Select
+    Selection.SpecialCells(xlCellTypeBlanks).EntireRow.Delete
+    Call TextAliignAndWordWrap
+    Workbooks(ConfigWB).Save
+    Workbooks(SMDSheetName).Save
+    'On Error Resume Next
+    'Workbooks(SMDSheetName).Close
+    'On Error Resume Next
+    ThisWorkbook.Application.StatusBar = "Processing..formatAllsheets"
+Next
+
+End Sub
+
+Public Sub TextAliignAndWordWrap()
+    Columns("C:C").Select
+    Range(Selection, Selection.End(xlToRight)).Select
+    Selection.ClearContents
+    Cells.Select
+    With Selection
+        .HorizontalAlignment = xlGeneral
+        .VerticalAlignment = xlTop
+        .WrapText = True
+        .Orientation = 0
+        .AddIndent = False
+        .IndentLevel = 0
+        .ShrinkToFit = False
+        .ReadingOrder = xlContext
+        .MergeCells = False
+    End With
+    With Selection.Interior
+        .Pattern = xlNone
+        .TintAndShade = 0
+        .PatternTintAndShade = 0
+    End With
+    With Selection.Font
+        .Name = "Calibri"
+        .Size = 10
+        .Strikethrough = False
+        .Superscript = False
+        .Subscript = False
+        .OutlineFont = False
+        .Shadow = False
+        .Underline = xlUnderlineStyleNone
+        .ThemeColor = xlThemeColorLight1
+        .TintAndShade = 0
+        .ThemeFont = xlThemeFontMinor
+    End With
+    
+    
+    Cells.EntireColumn.AutoFit
+    Selection.RowHeight = 25
+    Cells.EntireColumn.AutoFit
+    Selection.RowHeight = 10
+    Selection.RowHeight = 15
+
+    ThisWorkbook.Application.StatusBar = "Processing..TextAliignAndWordWrap"
+End Sub
+
+
+Public Sub AddTagsforProcessing()
+    ' Add tags to fulfill the criteria for EODC validator
+Workbooks(ConfigWB).Activate
+
+For Each ws In Workbooks(ConfigWB).Worksheets
+
+    ThisWorkbook.Application.StatusBar = "Processing..AddTagsforProcessing"
+    If ws.Name = "EODPosition" Then
+        ws.Select
+        ws.Cells(1, 1) = "#EODPosition"
+        ws.Cells(1, 2) = 1
+        ws.Cells(1, 4) = "eodp"
+        ws.Cells(2, 1) = "H"
+        ws.Cells(2, 2) = "HC(""D"")"
+    ElseIf ws.Name = "PositionDecorator" Then
+        ws.Select
+        ws.Cells(1, 1) = "#EODPosition"
+        ws.Cells(1, 2) = 1
+        ws.Cells(1, 4) = "eodpd"
+        ws.Cells(2, 1) = "H"
+        ws.Cells(2, 2) = "HC(""D"")"
+    End If
+    If ws.Name <> "EODPosition" And ws.Name <> "PositionDecorator" Then
+    'For rest all sheets which are measure
+        ws.Select
+        ws.Cells(1, 1) = "#MeasureValue"
+        ws.Cells(1, 2) = 1
+        ws.Cells(1, 4) = "eodm"
+        ws.Cells(2, 1) = "H"
+        ws.Cells(2, 2) = "HC(""D"")"
+    End If
+    'Delete unwanted 3rd and 4th row
+    ws.Select
+    ws.Range("a1:A1000").Select
+    Selection.SpecialCells(xlCellTypeBlanks).EntireRow.Delete
+    
+Next
+
+End Sub
